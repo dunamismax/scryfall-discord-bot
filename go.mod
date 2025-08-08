@@ -1,10 +1,13 @@
 module github.com/dunamismax/MTG-Card-Bot
 
-go 1.21
+go 1.23.0
+
+toolchain go1.24.6
 
 require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/magefile/mage v1.15.0
+	golang.org/x/text v0.28.0
 )
 
 require (

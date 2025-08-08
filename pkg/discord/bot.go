@@ -8,12 +8,14 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/dunamismax/MTG-Card-Bot/pkg/config"
 	"github.com/dunamismax/MTG-Card-Bot/pkg/scryfall"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type Bot struct {
-	session       *discordgo.Session
-	config        *config.Config
-	scryfallClient *scryfall.Client
+	session         *discordgo.Session
+	config          *config.Config
+	scryfallClient  *scryfall.Client
 	commandHandlers map[string]CommandHandler
 }
 
@@ -25,35 +27,35 @@ func NewBot(cfg *config.Config, scryfallClient *scryfall.Client) (*Bot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating Discord session: %w", err)
 	}
-	
+
 	bot := &Bot{
-		session:        session,
-		config:         cfg,
-		scryfallClient: scryfallClient,
+		session:         session,
+		config:          cfg,
+		scryfallClient:  scryfallClient,
 		commandHandlers: make(map[string]CommandHandler),
 	}
-	
+
 	// Register command handlers
 	bot.registerCommands()
-	
+
 	// Add message handler
 	session.AddHandler(bot.messageCreate)
-	
+
 	// Set intents
 	session.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
-	
+
 	return bot, nil
 }
 
 // Start starts the Discord bot
 func (b *Bot) Start() error {
 	log.Printf("Starting %s bot...", b.config.BotName)
-	
+
 	err := b.session.Open()
 	if err != nil {
 		return fmt.Errorf("opening Discord session: %w", err)
 	}
-	
+
 	log.Printf("Bot is now running as %s", b.session.State.User.Username)
 	return nil
 }
@@ -76,22 +78,22 @@ func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.Bot {
 		return
 	}
-	
+
 	// Check if message starts with command prefix
 	if !strings.HasPrefix(m.Content, b.config.CommandPrefix) {
 		return
 	}
-	
+
 	// Remove prefix and split into command and args
 	content := strings.TrimPrefix(m.Content, b.config.CommandPrefix)
 	parts := strings.Fields(content)
 	if len(parts) == 0 {
 		return
 	}
-	
+
 	command := strings.ToLower(parts[0])
 	args := parts[1:]
-	
+
 	// Handle specific commands
 	if handler, exists := b.commandHandlers[command]; exists {
 		if err := handler(s, m, args); err != nil {
@@ -100,7 +102,7 @@ func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 		return
 	}
-	
+
 	// If no specific handler, treat it as a card lookup
 	cardName := strings.Join(parts, " ")
 	if err := b.handleCardLookup(s, m, cardName); err != nil {
@@ -112,12 +114,12 @@ func (b *Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 // handleRandomCard handles the !random command
 func (b *Bot) handleRandomCard(s *discordgo.Session, m *discordgo.MessageCreate, args []string) error {
 	log.Printf("Fetching random card for user %s", m.Author.Username)
-	
+
 	card, err := b.scryfallClient.GetRandomCard()
 	if err != nil {
 		return fmt.Errorf("fetching random card: %w", err)
 	}
-	
+
 	return b.sendCardMessage(s, m.ChannelID, card)
 }
 
@@ -126,14 +128,14 @@ func (b *Bot) handleCardLookup(s *discordgo.Session, m *discordgo.MessageCreate,
 	if cardName == "" {
 		return fmt.Errorf("card name cannot be empty")
 	}
-	
+
 	log.Printf("Looking up card '%s' for user %s", cardName, m.Author.Username)
-	
+
 	card, err := b.scryfallClient.GetCardByName(cardName)
 	if err != nil {
 		return fmt.Errorf("fetching card by name: %w", err)
 	}
-	
+
 	return b.sendCardMessage(s, m.ChannelID, card)
 }
 
@@ -142,7 +144,7 @@ func (b *Bot) sendCardMessage(s *discordgo.Session, channelID string, card *scry
 	if !card.IsValidCard() {
 		return fmt.Errorf("invalid card data")
 	}
-	
+
 	if !card.HasImage() {
 		// Send text-only message if no image is available
 		embed := &discordgo.MessageEmbed{
@@ -157,13 +159,13 @@ func (b *Bot) sendCardMessage(s *discordgo.Session, channelID string, card *scry
 				},
 				{
 					Name:   "Rarity",
-					Value:  strings.Title(card.Rarity),
+					Value:  cases.Title(language.English).String(card.Rarity),
 					Inline: true,
 				},
 			},
 			URL: card.ScryfallURI,
 		}
-		
+
 		if card.Artist != "" {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:   "Artist",
@@ -171,17 +173,17 @@ func (b *Bot) sendCardMessage(s *discordgo.Session, channelID string, card *scry
 				Inline: true,
 			})
 		}
-		
+
 		_, err := s.ChannelMessageSendEmbed(channelID, embed)
 		return err
 	}
-	
+
 	// Get the highest quality image URL
 	imageURL := card.GetBestImageURL()
 	if imageURL == "" {
 		return fmt.Errorf("no image available for card")
 	}
-	
+
 	// Create rich embed with card image
 	embed := &discordgo.MessageEmbed{
 		Title: card.GetDisplayName(),
@@ -191,20 +193,20 @@ func (b *Bot) sendCardMessage(s *discordgo.Session, channelID string, card *scry
 		},
 		Color: b.getRarityColor(card.Rarity),
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("%s • %s", card.SetName, strings.Title(card.Rarity)),
+			Text: fmt.Sprintf("%s • %s", card.SetName, cases.Title(language.English).String(card.Rarity)),
 		},
 	}
-	
+
 	// Add mana cost if available
 	if card.ManaCost != "" {
 		embed.Description = fmt.Sprintf("**Mana Cost:** %s", card.ManaCost)
 	}
-	
+
 	// Add artist if available
 	if card.Artist != "" {
 		embed.Footer.Text += fmt.Sprintf(" • Art by %s", card.Artist)
 	}
-	
+
 	_, err := s.ChannelMessageSendEmbed(channelID, embed)
 	return err
 }
@@ -216,8 +218,10 @@ func (b *Bot) sendErrorMessage(s *discordgo.Session, channelID, message string) 
 		Description: message,
 		Color:       0xE74C3C, // Red color
 	}
-	
-	s.ChannelMessageSendEmbed(channelID, embed)
+
+	if _, err := s.ChannelMessageSendEmbed(channelID, embed); err != nil {
+		log.Printf("Failed to send error message: %v", err)
+	}
 }
 
 // getRarityColor returns a color based on card rarity
