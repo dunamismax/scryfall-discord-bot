@@ -79,6 +79,10 @@ mage vulncheck     # Security check
 # Random card discovery
 !random               # Get a random Magic: The Gathering card
 
+# Bot information and statistics
+!help                 # Show available commands
+!stats                # Display bot performance metrics
+
 # Examples of fuzzy matching
 !counterspell         # Exact match
 !counter              # Finds "Counterspell"
@@ -86,8 +90,24 @@ mage vulncheck     # Security check
 !ancestral            # Finds "Ancestral Recall"
 ```
 
+### 📸 Bot in Action
+
 <p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/the-one-ring.jpg" alt="MTG Card Embed Example" width="300" />
+  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/mtg-card-bot-help.png" alt="Help Command Screenshot" width="400" />
+  <br>
+  <em>Help command showing all available features</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/mtg-card-bot-lotus.png" alt="Fuzzy Search Example" width="400" />
+  <br>
+  <em>Fuzzy search in action - "!black lo" finds "Black Lotus"</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/mtg-card-bot-stats.png" alt="Stats Command Screenshot" width="400" />
+  <br>
+  <em>Performance statistics and monitoring</em>
 </p>
 
 ---
