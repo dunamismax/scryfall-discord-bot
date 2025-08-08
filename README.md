@@ -54,10 +54,6 @@ mage dev mtg-card-bot
 
 ---
 
-<p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/golang/gopher-mage.svg" alt="Gopher Mage" width="150" />
-</p>
-
 ## Mage Commands
 
 ```bash
@@ -71,6 +67,10 @@ mage vulncheck     # Security check
 ```
 
 ---
+
+<p align="center">
+  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/mtg-card-bot-gopher.png" alt="mtg-card-bot-gopher" width="300" />
+</p>
 
 ## MTG Card Bot Commands
 
