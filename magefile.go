@@ -4,7 +4,6 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -72,30 +71,30 @@ func loadEnvFile() error {
 // Build builds the MTG Card Bot
 func Build() error {
 	fmt.Println("Building MTG Card Bot...")
-	
+
 	if err := buildBot(botName); err != nil {
 		return fmt.Errorf("failed to build %s: %w", botName, err)
 	}
-	
+
 	fmt.Println("Successfully built MTG Card Bot!")
 	return showBuildInfo()
 }
 
 func buildBot(bot string) error {
 	fmt.Printf("  Building %s...\n", bot)
-	
+
 	if err := os.MkdirAll(buildDir, 0755); err != nil {
 		return fmt.Errorf("failed to create build directory: %w", err)
 	}
-	
+
 	ldflags := "-s -w -X main.version=1.0.0 -X main.buildTime=" + getCurrentTime()
 	binaryPath := filepath.Join(buildDir, bot)
-	
+
 	// Add .exe extension on Windows
 	if runtime.GOOS == "windows" {
 		binaryPath += ".exe"
 	}
-	
+
 	return sh.Run("go", "build", "-ldflags="+ldflags, "-o", binaryPath, fmt.Sprintf("./bots/%s/main.go", bot))
 }
 
@@ -138,21 +137,20 @@ func getGoBinaryPath(binaryName string) (string, error) {
 
 // Run runs the MTG Card Bot
 func Run() error {
-	
+
 	// Load environment variables from .env file
 	if err := loadEnvFile(); err != nil {
 		return fmt.Errorf("failed to load .env file: %w", err)
 	}
-	
+
 	botDir := filepath.Join("bots", botName)
 	if _, err := os.Stat(botDir); os.IsNotExist(err) {
 		return fmt.Errorf("bot %s does not exist", botName)
 	}
-	
+
 	fmt.Printf("Starting %s Discord bot...\n", botName)
 	return sh.RunWith(map[string]string{"BOT_NAME": botName}, "go", "run", fmt.Sprintf("./bots/%s/main.go", botName))
 }
-
 
 // Dev runs the MTG Card Bot in development mode with auto-restart
 func Dev() error {
@@ -161,26 +159,26 @@ func Dev() error {
 	if _, err := os.Stat(botDir); os.IsNotExist(err) {
 		return fmt.Errorf("bot %s does not exist", botName)
 	}
-	
+
 	fmt.Printf("Starting %s in development mode with auto-restart...\n", botName)
 	fmt.Println("Press Ctrl+C to stop.")
-	
+
 	restartCount := 0
 	for {
 		// Load environment variables fresh each restart
 		if err := loadEnvFile(); err != nil {
 			fmt.Printf("Warning: failed to load .env file: %v\n", err)
 		}
-		
+
 		cmd := exec.Command("go", "run", fmt.Sprintf("./bots/%s/main.go", botName))
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Env = append(os.Environ(), fmt.Sprintf("BOT_NAME=%s", botName))
-		
+
 		if restartCount > 0 {
 			fmt.Printf("[Restart #%d] Starting %s...\n", restartCount, botName)
 		}
-		
+
 		if err := cmd.Run(); err != nil {
 			restartCount++
 			fmt.Printf("Bot crashed: %v. Restarting in 3 seconds... (restart #%d)\n", err, restartCount)
@@ -189,16 +187,15 @@ func Dev() error {
 			fmt.Printf("Bot %s exited cleanly.\n", botName)
 			break
 		}
-		
+
 		// Prevent infinite restart loop
 		if restartCount > 10 {
 			return fmt.Errorf("bot has crashed too many times (>10), stopping auto-restart")
 		}
 	}
-	
+
 	return nil
 }
-
 
 // Test runs tests for all packages
 func Test() error {
@@ -209,17 +206,17 @@ func Test() error {
 // TestCoverage runs tests with coverage report
 func TestCoverage() error {
 	fmt.Println("Running tests with coverage...")
-	
+
 	coverageFile := "coverage.out"
 	if err := sh.RunV("go", "test", "-coverprofile="+coverageFile, "./..."); err != nil {
 		return fmt.Errorf("failed to run tests with coverage: %w", err)
 	}
-	
+
 	fmt.Println("Generating coverage report...")
 	if err := sh.RunV("go", "tool", "cover", "-html="+coverageFile, "-o", "coverage.html"); err != nil {
 		return fmt.Errorf("failed to generate coverage report: %w", err)
 	}
-	
+
 	fmt.Println("Coverage report generated: coverage.html")
 	return nil
 }
@@ -344,9 +341,9 @@ func Setup() error {
 	fmt.Println("Setting up Discord bot development environment...")
 
 	tools := map[string]string{
-		"govulncheck":    "golang.org/x/vuln/cmd/govulncheck@latest",
-		"goimports":      "golang.org/x/tools/cmd/goimports@latest",
-		"golangci-lint":  "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest",
+		"govulncheck":   "golang.org/x/vuln/cmd/govulncheck@latest",
+		"goimports":     "golang.org/x/tools/cmd/goimports@latest",
+		"golangci-lint": "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest",
 	}
 
 	for tool, pkg := range tools {
@@ -390,17 +387,17 @@ func Quality() error {
 func Info() error {
 	fmt.Println("MTG Card Discord Bot")
 	fmt.Println("===================")
-	
+
 	botDir := filepath.Join("bots", botName)
 	if _, err := os.Stat(botDir); os.IsNotExist(err) {
 		fmt.Printf("Bot directory not found: %s\n", botDir)
 		return nil
 	}
-	
+
 	fmt.Printf("Bot name: %s\n", botName)
 	fmt.Printf("Bot directory: %s\n", botDir)
 	fmt.Printf("Main file: %s\n", filepath.Join(botDir, "main.go"))
-	
+
 	return nil
 }
 
@@ -408,14 +405,14 @@ func Info() error {
 func Status() error {
 	fmt.Println("MTG Card Bot Development Environment Status")
 	fmt.Println("==========================================")
-	
+
 	// Check Go version
 	if version, err := sh.Output("go", "version"); err == nil {
 		fmt.Printf("Go: %s\n", version)
 	} else {
 		fmt.Printf("Go: Not found or error (%v)\n", err)
 	}
-	
+
 	// Check if .env file exists
 	if _, err := os.Stat(".env"); err == nil {
 		fmt.Println("Environment: .env file found ✓")
@@ -423,7 +420,7 @@ func Status() error {
 		fmt.Println("Environment: .env file missing ✗")
 		fmt.Println("  Run: cp .env.example .env")
 	}
-	
+
 	// Check bot directory
 	botDir := filepath.Join("bots", botName)
 	if _, err := os.Stat(botDir); err == nil {
@@ -431,7 +428,7 @@ func Status() error {
 	} else {
 		fmt.Printf("Bot: %s directory missing ✗\n", botName)
 	}
-	
+
 	// Check if binaries exist
 	if _, err := os.Stat(buildDir); err == nil {
 		entries, _ := os.ReadDir(buildDir)
@@ -439,7 +436,7 @@ func Status() error {
 	} else {
 		fmt.Println("Built binaries: None found")
 	}
-	
+
 	return nil
 }
 
@@ -524,7 +521,6 @@ func showBuildInfo() error {
 
 	return nil
 }
-
 
 // Aliases for common commands
 var Aliases = map[string]interface{}{
