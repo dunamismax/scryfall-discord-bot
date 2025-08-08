@@ -20,12 +20,6 @@
 
 ---
 
-## Live Demo
-
-**[Join Discord Server →](https://discord.gg/your-server-link)** - Experience the MTG Card Bot in action with live card lookups and random card features.
-
----
-
 ## About
 
 A production-ready monorepo for Discord bots built with **Modern Go Architecture** - designed for scalability, maintainability, and easy deployment. Create multiple specialized Discord bots that can run individually or concurrently from a single codebase.
@@ -164,7 +158,7 @@ mage reset            # Reset repository to fresh state
 ### Rich Discord Embeds
 
 <p align="center">
-  <img src="https://github.com/dunamismax/images/blob/main/discord/mtg-card-embed-example.png" alt="MTG Card Embed Example" width="600" />
+  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/the-one-ring.jpg" alt="MTG Card Embed Example" width="300" />
 </p>
 
 **Features:**
