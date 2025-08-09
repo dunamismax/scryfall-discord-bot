@@ -443,13 +443,13 @@ func (b *Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate, _ []s
 			},
 			{
 				Name: "Advanced Filtering",
-				Value: fmt.Sprintf("Use filters to find specific versions:\n`%sthe one ring frame:2015` - 2015 frame style\n`%slightning bolt border:borderless` - Borderless version\n`%sbrainstorm is:foil e:stx` - Foil from Strixhaven",
-					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix),
+				Value: fmt.Sprintf("Use filters to find specific versions:\n`%sthe one ring border:borderless e:ltr` - Borderless One Ring from LOTR\n`%slightning bolt is:fullart e:sta` - Full art Lightning Bolt from Strixhaven Mystical Archive\n`%sblack lotus is:vintage` - Vintage Black Lotus\n`%smox ruby is:foil e:vma` - Foil Mox Ruby from Vintage Masters\n`%sancestral recall frame:1993` - Original frame Ancestral Recall",
+					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix),
 				Inline: false,
 			},
 			{
 				Name:   "Filter Types",
-				Value:  "**Frame:** `frame:2015`, `frame:1997`, `frame:future`\n**Border:** `border:borderless`, `border:white`, `border:black`\n**Finish:** `is:foil`, `is:nonfoil`, `is:etched`\n**Set:** `e:m21`, `set:\"dominaria united\"`\n**Art:** `is:fullart`, `new:art`",
+				Value:  "**Frame:** `frame:2015`, `frame:1997`, `frame:future`, `frame:1993`\n**Border:** `border:borderless`, `border:white`, `border:black`, `border:gold`\n**Finish:** `is:foil`, `is:nonfoil`, `is:etched`, `is:glossy`\n**Set:** `e:ltr`, `e:sta`, `e:vma`, `set:\"lord of the rings\"`\n**Art:** `is:fullart`, `new:art`, `is:showcase`, `is:textless`\n**Rarity:** `is:mythic`, `is:rare`, `is:uncommon`, `is:vintage`",
 				Inline: false,
 			},
 			{
