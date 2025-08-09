@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/dunamismax/MTG-Card-Bot">
-    <img src="https://readme-typing-svg.demolab.com/?font=Fira+Code&size=24&pause=1000&color=00ADD8&center=true&vCenter=true&width=900&lines=Magic+The+Gathering+Card+Lookup+Bot;Discord+Bot+in+Go;Scryfall+API+Integration+with+Rate+Limiting;Rich+Discord+Embeds+with+Card+Images;Fuzzy+Search+and+Random+Card+Features;Auto-Restart+Development+with+Mage;Environment+Configuration+Management;Single+Binary+Deployments" alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com/?font=Fira+Code&size=24&pause=1000&color=00ADD8&center=true&vCenter=true&width=900&lines=Magic+The+Gathering+Card+Lookup+Bot;Discord+Bot+in+Go;Advanced+Card+Filtering+with+Smart+Fallback;Scryfall+API+Integration+with+Rate+Limiting;Rich+Discord+Embeds+with+Card+Images;Fuzzy+Search+and+Random+Card+Features;Auto-Restart+Development+with+Mage;Environment+Configuration+Management;Single+Binary+Deployments" alt="Typing SVG" />
   </a>
 </p>
 
@@ -22,11 +22,13 @@
 
 ## About
 
-A dedicated Magic: The Gathering card lookup Discord bot built in Go. Features fuzzy search, random card discovery, and rich embeds powered by the Scryfall API.
+A dedicated Magic: The Gathering card lookup Discord bot built in Go. Features fuzzy search, advanced filtering, random card discovery, and rich embeds powered by the Scryfall API.
 
 **Highlights:**
 
 * **Fuzzy Card Search** – Find cards with partial names like "jac bele" → "Jace Beleren"
+* **Advanced Filtering** – Find specific versions with `frame:`, `border:`, `is:foil`, `e:set`, and more
+* **Smart Fallback** – When filtered searches fail, automatically retry with just the card name
 * **Random Card Discovery** – Get random MTG cards with the `!random` command
 * **Rich Embeds** – Card images, rarity colors, mana costs, and detailed info
 * **Respectful API Use** – Built-in Scryfall rate limiting (10 requests/sec)
@@ -70,6 +72,8 @@ mage vulncheck     # Security check
 
 ## Bot Commands
 
+### Basic Commands
+
 ```bash
 # Card lookup with fuzzy matching
 !lightning bolt        # Finds "Lightning Bolt"
@@ -80,10 +84,45 @@ mage vulncheck     # Security check
 !random               # Get a random Magic: The Gathering card
 
 # Bot information and statistics
-!help                 # Show available commands
+!help                 # Show available commands and filtering examples
 !stats                # Display bot performance metrics
+!cache                # Show detailed cache statistics
+```
 
-# Examples of fuzzy matching
+### Advanced Filtering
+
+```bash
+# Frame styles
+!lightning bolt frame:1993         # Original 1993 frame
+!sol ring frame:2015              # Modern 2015 frame
+!akroma frame:future              # Future sight frame
+
+# Border types
+!the one ring border:borderless   # Borderless version
+!lightning bolt border:white      # White border version
+
+# Finishes and treatments
+!brainstorm is:foil               # Foil version
+!sol ring is:nonfoil              # Non-foil version
+!lightning bolt is:etched         # Etched finish
+
+# Set and edition filtering
+!black lotus e:lea                # From Limited Edition Alpha
+!ancestral recall e:leb           # From Limited Edition Beta
+!lightning bolt e:sta is:fullart  # Full-art from Strixhaven Archives
+
+# Combine multiple filters
+!force of will frame:1997 is:foil e:all     # 1997 frame, foil, from Alliances
+!jace the mind sculptor frame:2015 e:a25    # Modern frame from Masters 25
+```
+
+### 📖 Complete Reference
+
+**[Full Command Cheat Sheet](docs/commands.md)** – Comprehensive guide with all filtering options, examples, and troubleshooting tips.
+
+### Examples of fuzzy matching
+
+```bash
 !counterspell         # Exact match
 !counter              # Finds "Counterspell"
 !force will           # Finds "Force of Will"
@@ -163,7 +202,7 @@ MIT – see [LICENSE](LICENSE) for details.
 
 <p align="center">
   <strong>MTG Card Discord Bot</strong><br>
-  <sub>DiscordGo • Scryfall API • Mage • slog • Config • Rate Limiting • Rich Embeds</sub>
+  <sub>DiscordGo • Scryfall API • Advanced Filtering • Smart Fallback • Mage • slog • Rich Embeds</sub>
 </p>
 
 ---
