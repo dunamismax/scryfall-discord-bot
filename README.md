@@ -138,6 +138,12 @@ mage vulncheck     # Security check
 </p>
 
 <p align="center">
+  <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/black-lotus-fuzzy-search.png" alt="Fuzzy Search" width="500" />
+  <br>
+  <em>Fuzzy search in action - "!black lo" finds "Black Lotus"</em>
+</p>
+
+<p align="center">
   <img src="https://github.com/dunamismax/images/blob/main/golang/discord-bots/mtg-card-bot-stats-new.png" alt="Stats Command Screenshot" width="500" />
   <br>
   <em>Performance statistics and monitoring</em>
