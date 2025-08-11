@@ -196,7 +196,8 @@ func (b *Bot) handleCardLookup(s *discordgo.Session, m *discordgo.MessageCreate,
 	)
 	logger.Info("Looking up card")
 
-	// Check if query contains filter parameters
+	// Normalize and check if query contains filter parameters
+	cardQuery = strings.TrimSpace(cardQuery)
 	hasFilters := b.hasFilterParameters(cardQuery)
 
 	var (
@@ -214,7 +215,7 @@ func (b *Bot) handleCardLookup(s *discordgo.Session, m *discordgo.MessageCreate,
 		// If filtered search fails, extract card name and try fallback
 		if err != nil {
 			cardName := b.extractCardName(cardQuery)
-			if cardName != "" {
+			if cardName != "" && len(cardName) >= 2 {
 				logger.Debug("Filtered search failed, trying fallback with card name", "fallback_name", cardName)
 
 				card, err = b.cache.GetOrSet(cardName, func(name string) (*scryfall.Card, error) {
@@ -371,7 +372,7 @@ func (b *Bot) sendCardMessage(s *discordgo.Session, channelID string, card *scry
 	var descriptions []string
 
 	if usedFallback {
-		descriptions = append(descriptions, fmt.Sprintf("⚠️ *No exact match found for filters in `%s`, showing closest match*", originalQuery))
+		descriptions = append(descriptions, fmt.Sprintf("*No exact match found for filters in `%s`, showing closest match*", originalQuery))
 	}
 
 	if card.ManaCost != "" {
@@ -440,34 +441,35 @@ func (b *Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate, _ []s
 
 	embed := &discordgo.MessageEmbed{
 		Title:       "MTG Card Bot Help",
-		Description: "I can help you look up Magic: The Gathering cards with advanced filtering!",
-		Color:       0x3498DB, // Blue color.
+		Description: "Magic: The Gathering card lookup with advanced filtering support",
+		Color:       0x3498DB,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name: "Basic Commands",
-				Value: fmt.Sprintf("`%s<card-name>` - Look up a card by name\n`%srandom` - Get a random card\n`%shelp` - Show this help\n`%sstats` - Show bot statistics",
+				Value: fmt.Sprintf("`%s<card-name>` - Look up any MTG card\n`%srandom` - Get a random card\n`%shelp` - Show this help menu\n`%sstats` - Display bot statistics\n`%scache` - Show cache performance",
+					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix),
+				Inline: false,
+			},
+			{
+				Name: "Search Examples",
+				Value: fmt.Sprintf("`%slightning bolt` - Find Lightning Bolt\n`%sthe one ring` - Find The One Ring\n`%sjac bele` - Fuzzy search finds \"Jace Beleren\"\n`%sbol` - Partial name finds \"Lightning Bolt\"",
 					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix),
 				Inline: false,
 			},
 			{
 				Name: "Advanced Filtering",
-				Value: fmt.Sprintf("Use filters to find specific versions:\n`%sthe one ring border:borderless e:ltr` - Borderless One Ring from LOTR\n`%slightning bolt is:fullart e:sta` - Full art Lightning Bolt from Strixhaven Mystical Archive\n`%sblack lotus is:vintage` - Vintage Black Lotus\n`%smox ruby is:foil e:vma` - Foil Mox Ruby from Vintage Masters\n`%sancestral recall frame:1993` - Original frame Ancestral Recall",
-					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix),
+				Value: fmt.Sprintf("`%sthe one ring e:ltr border:borderless` - Specific version\n`%slightning bolt frame:1993` - Original 1993 frame\n`%sblack lotus is:foil` - Foil version only\n`%smox ruby rarity:rare e:vma` - Rare from Vintage Masters",
+					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix),
 				Inline: false,
 			},
 			{
 				Name:   "Essential Filters",
-				Value:  "**Set:** `e:ltr`, `e:sta`, `e:dom` (3-letter set codes)\n**Frame:** `frame:2015`, `frame:1997`, `frame:1993`\n**Border:** `border:borderless`, `border:white`, `border:black`\n**Finish:** `is:foil`, `is:nonfoil`\n**Art:** `is:fullart`, `is:textless`, `is:borderless`\n**Rarity:** `rarity:mythic`, `rarity:rare`, `rarity:uncommon`",
-				Inline: false,
-			},
-			{
-				Name:   "📖 Full Command Reference",
-				Value:  "[Complete Command Cheat Sheet](https://github.com/dunamismax/mtg-card-bot/blob/main/docs/commands.md)",
+				Value:  "**Set:** `e:ltr` `e:sta` `e:dom` (3-letter codes)\n**Frame:** `frame:2015` `frame:1997` `frame:1993`\n**Border:** `border:borderless` `border:white`\n**Finish:** `is:foil` `is:nonfoil`\n**Art:** `is:fullart` `is:textless` `is:borderless`\n**Rarity:** `rarity:mythic` `rarity:rare` `rarity:uncommon`",
 				Inline: false,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "💡 Tip: Fuzzy matching works! Mix card names with filters for precise results.",
+			Text: "Fuzzy matching supported - Mix card names with filters for precise results",
 		},
 	}
 
@@ -499,36 +501,36 @@ func (b *Bot) handleStats(s *discordgo.Session, m *discordgo.MessageCreate, _ []
 		Color: 0x2ECC71, // Green color.
 		Fields: []*discordgo.MessageEmbedField{
 			{
-				Name: "📊 Commands",
+				Name: "Commands",
 				Value: fmt.Sprintf("Total: %d\nSuccessful: %d\nFailed: %d\nSuccess Rate: %.1f%%",
 					summary.CommandsTotal, summary.CommandsSuccessful, summary.CommandsFailed, summary.CommandSuccessRate),
 				Inline: true,
 			},
 			{
-				Name: "🌐 API Requests",
+				Name: "API Requests",
 				Value: fmt.Sprintf("Total: %d\nSuccess Rate: %.1f%%\nAvg Response: %.0fms",
 					summary.APIRequestsTotal, summary.APISuccessRate, summary.AverageResponseTime),
 				Inline: true,
 			},
 			{
-				Name: "💾 Cache Performance",
+				Name: "Cache Performance",
 				Value: fmt.Sprintf("Size: %d cards\nHit Rate: %.1f%%\nHits: %d\nMisses: %d",
 					summary.CacheSize, summary.CacheHitRate, summary.CacheHits, summary.CacheMisses),
 				Inline: true,
 			},
 			{
-				Name: "⚡ Performance",
+				Name: "Performance",
 				Value: fmt.Sprintf("Commands/sec: %.2f\nAPI Requests/sec: %.2f",
 					summary.CommandsPerSecond, summary.APIRequestsPerSecond),
 				Inline: true,
 			},
 			{
-				Name:   "⏱️ Uptime",
+				Name:   "Uptime",
 				Value:  uptimeStr,
 				Inline: true,
 			},
 			{
-				Name:   "🚀 Started",
+				Name:   "Started",
 				Value:  fmt.Sprintf("<t:%d:R>", time.Now().Add(-uptime).Unix()),
 				Inline: true,
 			},
@@ -549,7 +551,7 @@ func (b *Bot) handleStats(s *discordgo.Session, m *discordgo.MessageCreate, _ []
 
 		if len(errorInfo) > 0 {
 			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
-				Name:   "⚠️ Errors",
+				Name:   "Error Summary",
 				Value:  strings.Join(errorInfo, "\n"),
 				Inline: false,
 			})
@@ -576,30 +578,31 @@ func (b *Bot) handleCacheStats(s *discordgo.Session, m *discordgo.MessageCreate,
 	cacheStats := b.cache.Stats()
 
 	embed := &discordgo.MessageEmbed{
-		Title: "Cache Statistics",
-		Color: 0xE67E22, // Orange color.
+		Title:       "Cache Performance Statistics",
+		Description: "Card caching system metrics and utilization",
+		Color:       0xE67E22,
 		Fields: []*discordgo.MessageEmbedField{
 			{
-				Name: "📦 Storage",
-				Value: fmt.Sprintf("Size: %d / %d cards\nUtilization: %.1f%%",
+				Name: "Storage Utilization",
+				Value: fmt.Sprintf("**Current Size:** %d cards\n**Maximum Size:** %d cards\n**Utilization:** %.1f%%",
 					cacheStats.Size, cacheStats.MaxSize, float64(cacheStats.Size)/float64(cacheStats.MaxSize)*100),
 				Inline: true,
 			},
 			{
-				Name: "🎯 Performance",
-				Value: fmt.Sprintf("Hit Rate: %.1f%%\nHits: %d\nMisses: %d",
+				Name: "Hit Performance",
+				Value: fmt.Sprintf("**Hit Rate:** %.1f%%\n**Cache Hits:** %d\n**Cache Misses:** %d",
 					cacheStats.HitRate, cacheStats.Hits, cacheStats.Misses),
 				Inline: true,
 			},
 			{
-				Name: "♻️ Management",
-				Value: fmt.Sprintf("Evictions: %d\nTTL: %v",
+				Name: "Cache Management",
+				Value: fmt.Sprintf("**Evictions:** %d\n**TTL Duration:** %v",
 					cacheStats.Evictions, cacheStats.TTL),
 				Inline: true,
 			},
 		},
 		Footer: &discordgo.MessageEmbedFooter{
-			Text: "Cache helps reduce API calls and improve response times",
+			Text: "Efficient caching reduces API calls and improves response times",
 		},
 	}
 
