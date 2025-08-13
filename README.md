@@ -77,7 +77,7 @@ mage vulncheck     # Security check
 ```bash
 # Card lookup with fuzzy matching
 !lightning bolt        # Finds "Lightning Bolt"
-!the-one-ring         # Finds "The One Ring"
+!the one ring         # Finds "The One Ring"
 !jac bele             # Finds "Jace Beleren" (fuzzy search)
 
 # Random card discovery
@@ -96,6 +96,9 @@ mage vulncheck     # Security check
 !black lotus; lightning bolt; the one ring; sol ring
 
 # Up to 10 per request; sent in grids of 4
+
+# Showcase example (copy/paste)
+!black lotus frame:1993; the one ring e:ltr is:foil border:borderless; sol ring is:textless; lightning bolt is:fullart
 ```
 
 ### Advanced Filtering
@@ -125,9 +128,13 @@ mage vulncheck     # Security check
 !jace the mind sculptor frame:2015 e:a25    # Modern frame from Masters 25
 ```
 
-### 📖 Complete Reference
+### Complete Reference
 
 **[Full Command Cheat Sheet](docs/commands.md)** – Comprehensive guide with all filtering options, examples, and troubleshooting tips.
+
+Additional docs:
+
+- [Old-School Art Guide](docs/old-school-art.md) – Frames, borders, and vintage aesthetics for iconic looks.
 
 ### Examples of fuzzy matching
 
@@ -192,6 +199,8 @@ Start development with `mage dev` for auto-restart functionality.
 * **Single Binary** – Build with `mage build`, copy the file, and run with env vars.
 * **Systemd** – Create a service to keep it running on Linux.
 * **Docker** – Lightweight container build included.
+
+For step-by-step setup, see the [Discord Setup Guide](docs/discord-setup-guide.md).
 
 ---
 
