@@ -396,25 +396,25 @@ func (b *Bot) sendCardGridMessage(s *discordgo.Session, channelID string, items 
 		Color:       0x5865F2,
 	}
 
-    // If no images, send just the embed; otherwise send embed first, then images
-    if len(files) == 0 {
-        _, err := s.ChannelMessageSendEmbed(channelID, embed)
-        if err != nil {
-            return errors.NewDiscordError("failed to send multi-card embed message", err)
-        }
-        return nil
-    }
+	// If no images, send just the embed; otherwise send embed first, then images
+	if len(files) == 0 {
+		_, err := s.ChannelMessageSendEmbed(channelID, embed)
+		if err != nil {
+			return errors.NewDiscordError("failed to send multi-card embed message", err)
+		}
+		return nil
+	}
 
-    // Send the list embed first so it appears above the image grid
-    if _, err := s.ChannelMessageSendEmbed(channelID, embed); err != nil {
-        return errors.NewDiscordError("failed to send multi-card list embed", err)
-    }
+	// Send the list embed first so it appears above the image grid
+	if _, err := s.ChannelMessageSendEmbed(channelID, embed); err != nil {
+		return errors.NewDiscordError("failed to send multi-card list embed", err)
+	}
 
-    // Then send the image grid as a separate message with only attachments
-    if _, err := s.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{Files: files}); err != nil {
-        return errors.NewDiscordError("failed to send multi-card grid attachments", err)
-    }
-    return nil
+	// Then send the image grid as a separate message with only attachments
+	if _, err := s.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{Files: files}); err != nil {
+		return errors.NewDiscordError("failed to send multi-card grid attachments", err)
+	}
+	return nil
 }
 
 // fetchImage downloads the image data, returning bytes and a reasonable filename.
@@ -680,12 +680,8 @@ func (b *Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate, _ []s
 				Inline: false,
 			},
 			{
-				Name: "Examples (Cool Looks)",
-				Value: fmt.Sprintf(
-					"`%sthe one ring e:ltr is:foil border:borderless` – Borderless foil\n"+
-						"`%ssol ring is:textless` – Textless art\n"+
-						"`%slightning bolt is:fullart` – Full art\n"+
-						"`%sblack lotus frame:1993; mox emerald frame:1993; mox ruby frame:1993` – Vintage frames",
+				Name: "Old-School Favorites (pre-2003)",
+				Value: fmt.Sprintf("`%sblack lotus e:lea` – Alpha 1993\n`%sancestral recall e:lea` – Alpha 1993\n`%stime walk e:lea` – Alpha 1993\n`%ssol ring e:lea` – Alpha 1993",
 					b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix, b.config.CommandPrefix,
 				),
 				Inline: false,
@@ -693,14 +689,21 @@ func (b *Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate, _ []s
 			{
 				Name: "Multi-Card Demo (4-card grid)",
 				Value: fmt.Sprintf(
-					"`%sblack lotus frame:1993; the one ring e:ltr is:foil border:borderless; sol ring is:textless; lightning bolt is:fullart`",
+					"`%scity of brass e:arn; library of alexandria e:arn; juzam djinn e:arn; serendib efreet e:arn`",
 					b.config.CommandPrefix,
 				),
 				Inline: false,
 			},
 			{
+				Name: "More Classic Grids",
+				Value: fmt.Sprintf("`%sshivan dragon e:lea; serra angel e:lea; lightning bolt e:lea; ancestral recall e:lea`\n`%sserra's sanctum e:usg; yawgmoth's will e:usg; wasteland e:tmp; necropotence e:ice`",
+					b.config.CommandPrefix, b.config.CommandPrefix,
+				),
+				Inline: false,
+			},
+			{
 				Name:   "Filters",
-				Value:  "Set `e:ltr` • Frame `frame:1993|2015` • Border `border:borderless` • Finish `is:foil|is:nonfoil|is:etched` • Art `is:fullart|is:textless|is:borderless` • Rarity `rarity:mythic|rare`",
+				Value:  "Set `e:lea|arn|leg|usg|tmp|ice` • Frame `frame:1993|1997` • Border `border:white` • Finish `is:foil|is:nonfoil` • Rarity `rarity:mythic|rare`",
 				Inline: false,
 			},
 		},
