@@ -88,7 +88,6 @@ class MTGConfig:
             )
 
 
-
 def load_config() -> MTGConfig:
     """Load configuration for MTG Card bot."""
     return MTGConfig()

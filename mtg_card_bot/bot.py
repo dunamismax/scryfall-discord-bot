@@ -50,7 +50,7 @@ class MTGCardBot(discord.Client):
         self._processed_message_ids: set[int] = set()
         # Background cleanup task
         self._cleanup_task: asyncio.Task | None = None
-        
+
         # Performance improvements
         self._user_rate_limits: dict[int, float] = {}  # Track per-user rate limits
 
@@ -161,7 +161,9 @@ class MTGCardBot(discord.Client):
             card_query = " ".join(parts)
             await self._handle_card_lookup(message, card_query)
 
-    async def _handle_random_card(self, message: discord.Message, filter_query: str = "") -> None:
+    async def _handle_random_card(
+        self, message: discord.Message, filter_query: str = ""
+    ) -> None:
         """Handle the random card command with optional filters."""
         if filter_query:
             self.logger.info(
@@ -179,7 +181,9 @@ class MTGCardBot(discord.Client):
 
         try:
             card = await self.scryfall_client.get_random_card(filter_query)
-            await self._send_card_message(message.channel, card, False, filter_query or "random")
+            await self._send_card_message(
+                message.channel, card, False, filter_query or "random"
+            )
         except Exception as e:
             self.logger.error(
                 "Random card command failed",
@@ -187,7 +191,7 @@ class MTGCardBot(discord.Client):
                 filter_query=filter_query,
                 error=str(e),
             )
-            
+
             # Provide helpful error messages
             if isinstance(e, errors.MTGError):
                 if e.error_type == errors.ErrorType.NOT_FOUND and filter_query:
@@ -195,10 +199,12 @@ class MTGCardBot(discord.Client):
                 elif e.error_type == errors.ErrorType.RATE_LIMIT:
                     error_msg = "API rate limit exceeded. Please try again in a moment."
                 else:
-                    error_msg = "Sorry, something went wrong while fetching a random card."
+                    error_msg = (
+                        "Sorry, something went wrong while fetching a random card."
+                    )
             else:
                 error_msg = "Sorry, something went wrong while fetching a random card."
-                
+
             await self._send_error_message(message.channel, error_msg)
 
     async def _handle_card_lookup(
@@ -626,7 +632,11 @@ class MTGCardBot(discord.Client):
             descriptions.append(
                 f"*No exact match found for filters in `{original_query}`, showing closest match*"
             )
-        elif original_query and original_query != "random" and self._has_filter_parameters(original_query):
+        elif (
+            original_query
+            and original_query != "random"
+            and self._has_filter_parameters(original_query)
+        ):
             descriptions.append(f"*Filtered result for: `{original_query}`*")
 
         if card.mana_cost:
@@ -724,10 +734,11 @@ class MTGCardBot(discord.Client):
             inline=False,
         )
 
-        embed.set_footer(text="Powered by Scryfall API • github.com/dunamismax/mtg-card-bot")
+        embed.set_footer(
+            text="Powered by Scryfall API • github.com/dunamismax/mtg-card-bot"
+        )
 
         await message.channel.send(embed=embed)
-
 
     async def _send_error_message(
         self, channel: discord.abc.Messageable, message: str
@@ -772,7 +783,7 @@ class MTGCardBot(discord.Client):
                 ]
                 for key in old_keys:
                     del self._recent_commands[key]
-                
+
                 # Clean up old rate limit timestamps (keep for 5 minutes)
                 old_rate_limit_users = [
                     user_id

@@ -314,17 +314,19 @@ class ScryfallClient:
             # For filtered queries, we need to search and then pick randomly
             # First, get the total count
             search_result = await self.search_cards(query)
-            
+
             if search_result.total_cards == 0:
                 raise errors.create_error(
                     errors.ErrorType.NOT_FOUND, f"No cards found matching '{query}'"
                 )
-            
+
             # Pick a random page if there are multiple pages
             cards_per_page = 175  # Scryfall's default page size
-            max_page = min(10, (search_result.total_cards + cards_per_page - 1) // cards_per_page)  # Limit to first 10 pages for performance
+            max_page = min(
+                10, (search_result.total_cards + cards_per_page - 1) // cards_per_page
+            )  # Limit to first 10 pages for performance
             random_page = random.randint(1, max_page)
-            
+
             # If we're on page 1 and already have the data, use it
             if random_page == 1 and search_result.data:
                 cards = search_result.data
@@ -338,13 +340,13 @@ class ScryfallClient:
                     cards = search_result.data
                 else:
                     cards = [Card(card_data) for card_data in data["data"]]
-            
+
             # Pick a random card from the page
             if not cards:
                 raise errors.create_error(
                     errors.ErrorType.NOT_FOUND, f"No cards found matching '{query}'"
                 )
-            
+
             card = random.choice(cards)
         else:
             self.logger.debug("Fetching random card")
