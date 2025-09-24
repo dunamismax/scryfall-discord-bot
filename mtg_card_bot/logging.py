@@ -1,73 +1,50 @@
 """Simple logging functionality for MTG Card bot."""
 
+from __future__ import annotations
+
+import json
 import logging
 import sys
-from datetime import UTC, datetime
 from typing import Any
+
+_LOGGING_INITIALIZED = False
 
 
 class Logger:
-    """Simple logger for MTG Card bot."""
+    """Light wrapper around Python's logging module for component-based logs."""
 
     def __init__(self, component: str = "mtg_card_bot"):
         self.component = component
-        self._setup_logging()
-
-    def _setup_logging(self):
-        """Set up basic logging."""
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s [%(levelname)s] %(message)s",
-            handlers=[logging.StreamHandler(sys.stdout)],
-        )
-        self.logger = logging.getLogger(self.component)
+        self.logger = logging.getLogger(component)
 
     def debug(self, message: str, **kwargs: Any) -> None:
         """Log a debug message."""
-        self._log("DEBUG", message, **kwargs)
+        self._log(logging.DEBUG, message, **kwargs)
 
     def info(self, message: str, **kwargs: Any) -> None:
         """Log an info message."""
-        self._log("INFO", message, **kwargs)
+        self._log(logging.INFO, message, **kwargs)
 
     def warning(self, message: str, **kwargs: Any) -> None:
         """Log a warning message."""
-        self._log("WARNING", message, **kwargs)
+        self._log(logging.WARNING, message, **kwargs)
 
     def error(self, message: str, **kwargs: Any) -> None:
         """Log an error message."""
-        self._log("ERROR", message, **kwargs)
+        self._log(logging.ERROR, message, **kwargs)
 
-    def _log(self, level: str, message: str, **kwargs: Any) -> None:
-        """Internal logging method."""
-        timestamp = datetime.now(UTC).isoformat()
-
-        # Build log message with context
-        log_parts = ["[MTG]", f"{timestamp}", f"[{level}]", message]
-
-        # Add context fields
+    def _log(self, level: int, message: str, **kwargs: Any) -> None:
+        """Emit a structured log message with optional key/value context."""
         if kwargs:
-            context_parts = []
-            for key, value in kwargs.items():
-                context_parts.append(f"{key}={value}")
-            if context_parts:
-                log_parts.append(" ".join(context_parts))
-
-        full_message = " ".join(log_parts)
-
-        # Use appropriate logging level
-        if level == "DEBUG":
-            self.logger.debug(full_message)
-        elif level == "INFO":
-            self.logger.info(full_message)
-        elif level == "WARNING":
-            self.logger.warning(full_message)
-        elif level == "ERROR":
-            self.logger.error(full_message)
+            context = " ".join(f"{key}={value}" for key, value in kwargs.items())
+            message = f"{message} {context}"
+        self.logger.log(level, message)
 
 
 def initialize_logger(level: str = "info", json_format: bool = False) -> None:
     """Initialize the global logger with the specified level and format."""
+    global _LOGGING_INITIALIZED
+
     level_map = {
         "debug": logging.DEBUG,
         "info": logging.INFO,
@@ -77,11 +54,33 @@ def initialize_logger(level: str = "info", json_format: bool = False) -> None:
     }
     log_level = level_map.get(level.lower(), logging.INFO)
 
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+    if _LOGGING_INITIALIZED:
+        logging.getLogger().setLevel(log_level)
+        return
+
+    if json_format:
+        class JsonFormatter(logging.Formatter):
+            """Formatter that outputs log records as JSON strings."""
+
+            def format(self, record: logging.LogRecord) -> str:
+                payload = {
+                    "timestamp": self.formatTime(record, self.datefmt),
+                    "level": record.levelname,
+                    "logger": record.name,
+                    "message": record.getMessage(),
+                }
+                return json.dumps(payload)
+
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setFormatter(JsonFormatter())
+        logging.basicConfig(level=log_level, handlers=[handler])
+    else:
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
+            handlers=[logging.StreamHandler(sys.stdout)],
+        )
+    _LOGGING_INITIALIZED = True
 
 
 def with_component(component: str) -> Logger:

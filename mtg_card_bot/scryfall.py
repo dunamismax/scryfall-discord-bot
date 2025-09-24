@@ -4,7 +4,7 @@ import asyncio
 import random
 import time
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import httpx
 
@@ -209,7 +209,7 @@ class ScryfallClient:
 
     BASE_URL = "https://api.scryfall.com"
     USER_AGENT = "MTGCardBot/2.0"
-    RATE_LIMIT = 0.05  # 50ms between requests (20 requests per second max)
+    RATE_LIMIT = 0.1  # 100ms between requests (10 requests per second max)
 
     def __init__(self) -> None:
         self.client = httpx.AsyncClient(
@@ -307,6 +307,24 @@ class ScryfallClient:
         )
         return card
 
+    def _build_search_endpoint(
+        self,
+        query: str,
+        order: str | None = None,
+        direction: str | None = None,
+        page: int | None = None,
+    ) -> str:
+        params: dict[str, str] = {"q": query}
+        if order:
+            params["order"] = order
+        if direction:
+            params["dir"] = direction
+        if page is not None:
+            params["page"] = str(page)
+
+        query_string = urlencode(params, doseq=True)
+        return f"/cards/search?{query_string}"
+
     async def get_random_card(self, query: str = "") -> Card:
         """Get a random Magic card, optionally filtered by search query."""
         if query:
@@ -332,7 +350,7 @@ class ScryfallClient:
                 cards = search_result.data
             else:
                 # Fetch the random page
-                endpoint = f"/cards/search?q={quote(query)}&page={random_page}"
+                endpoint = self._build_search_endpoint(query, page=random_page)
                 response = await self._request(endpoint)
                 data = response.json()
                 if not data.get("data"):
@@ -358,15 +376,27 @@ class ScryfallClient:
         self.logger.debug("Successfully retrieved random card", card_name=card.name)
         return card
 
-    async def search_cards(self, query: str) -> SearchResult:
+    async def search_cards(
+        self,
+        query: str,
+        order: str | None = None,
+        direction: str | None = None,
+        page: int | None = None,
+    ) -> SearchResult:
         """Perform a full-text search for cards."""
         if not query:
             raise errors.create_error(
                 errors.ErrorType.VALIDATION, "Search query cannot be empty"
             )
 
-        self.logger.debug("Searching cards", query=query)
-        endpoint = f"/cards/search?q={quote(query)}"
+        self.logger.debug(
+            "Searching cards",
+            query=query,
+            order=order or "default",
+            direction=direction or "auto",
+            page=str(page) if page is not None else "auto",
+        )
+        endpoint = self._build_search_endpoint(query, order, direction, page)
 
         response = await self._request(endpoint)
         data = response.json()
@@ -377,29 +407,39 @@ class ScryfallClient:
         )
         return result
 
-    async def search_card_first(self, query: str) -> Card:
+    async def search_card_first(
+        self, query: str, order: str | None = None, direction: str | None = None
+    ) -> Card:
         """Perform a search and return the first result."""
         if not query:
             raise errors.create_error(
                 errors.ErrorType.VALIDATION, "Search query cannot be empty"
             )
 
-        self.logger.debug("Searching for first card", query=query)
+        self.logger.debug(
+            "Searching for first card",
+            query=query,
+            order=order or "default",
+            direction=direction or "auto",
+        )
 
-        # Add order by relevance for best results
-        search_query = f"({query}) order:relevance"
-        endpoint = f"/cards/search?q={quote(search_query)}"
-
-        response = await self._request(endpoint)
-        data = response.json()
-        result = SearchResult(data)
+        result = await self.search_cards(query, order, direction)
 
         if result.total_cards == 0 or not result.data:
             raise errors.create_error(
                 errors.ErrorType.NOT_FOUND, "No cards found matching query"
             )
 
-        card = result.data[0]
+        if order is None and len(result.data) > 1:
+            card = random.choice(result.data)
+            self.logger.debug(
+                "Selected random card from search results",
+                card_name=card.name,
+                candidate_count=len(result.data),
+            )
+        else:
+            card = result.data[0]
+
         self.logger.debug(
             "Successfully found card via search",
             card_name=card.name,

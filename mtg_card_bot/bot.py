@@ -345,16 +345,22 @@ class MTGCardBot(discord.Client):
     async def _resolve_card_query(self, card_query: str) -> tuple[Card, bool]:
         """Resolve a single card query into a card with caching and fallbacks."""
         card_query = card_query.strip()
-        has_filters = self._has_filter_parameters(card_query)
+        clean_query, order_hint, direction_hint = self._extract_sort_parameters(
+            card_query
+        )
+        search_query = clean_query or card_query
+        has_filters = bool(order_hint) or self._has_filter_parameters(search_query)
         used_fallback = False
 
         if has_filters:
             # Use search API for filtered queries
             try:
-                card = await self.scryfall_client.search_card_first(card_query)
+                card = await self.scryfall_client.search_card_first(
+                    search_query, order_hint, direction_hint
+                )
             except Exception:
                 # If filtered search fails, extract card name and try fallback
-                card_name = self._extract_card_name(card_query)
+                card_name = self._extract_card_name(search_query)
                 if card_name and len(card_name) >= 2:
                     card = await self.scryfall_client.get_card_by_name(card_name)
                     used_fallback = True
@@ -362,7 +368,7 @@ class MTGCardBot(discord.Client):
                     raise
         else:
             # Direct API call for simple name lookups
-            card = await self.scryfall_client.get_card_by_name(card_query)
+            card = await self.scryfall_client.get_card_by_name(search_query)
 
         if not card or not card.is_valid_card():
             raise errors.create_error(
@@ -528,6 +534,31 @@ class MTGCardBot(discord.Client):
         lower_query = query.lower()
         return any(filter_param in lower_query for filter_param in essential_filters)
 
+    def _extract_sort_parameters(self, query: str) -> tuple[str, str | None, str | None]:
+        """Extract order/dir hints from the query and return the cleaned query."""
+        tokens = query.split()
+        order: str | None = None
+        direction: str | None = None
+        remaining_tokens: list[str] = []
+
+        for token in tokens:
+            lower_token = token.lower()
+            if lower_token.startswith(("order:", "sort:")):
+                value = token.split(":", 1)[1].strip().strip("()[]{}.,;'\"")
+                if value:
+                    order = value.lower()
+                continue
+            if lower_token.startswith(("dir:", "direction:")):
+                value = token.split(":", 1)[1].strip().strip("()[]{}.,;'\"")
+                value_lower = value.lower()
+                if value_lower in {"asc", "desc", "auto"}:
+                    direction = value_lower
+                continue
+            remaining_tokens.append(token)
+
+        cleaned_query = " ".join(remaining_tokens).strip()
+        return cleaned_query, order, direction
+
     def _extract_card_name(self, query: str) -> str:
         """Extract the card name from a filtered query for fallback purposes."""
         words = query.split()
@@ -686,37 +717,37 @@ class MTGCardBot(discord.Client):
         prefix = self.config.command_prefix
         embed = discord.Embed(
             title="MTG Card Bot",
-            description="**Fast Magic card lookup with live pricing & format legality**",
+            description="**Fast Discord lookups with live pricing, legality, and rich embeds**",
             color=0x5865F2,
         )
 
         embed.add_field(
-            name="Basic Commands",
+            name="Essential Commands",
             value=(
-                f"`{prefix}lightning bolt` or `[[Lightning Bolt]]` — Card lookup\n"
-                f"`{prefix}rules counterspell` — Official rulings\n"
-                f"`{prefix}random` — Random card\n"
-                f"`{prefix}random rarity:mythic` — Filtered random\n"
-                f"`{prefix}help` — This guide"
+                f"`{prefix}lightning bolt` • single-card lookup\n"
+                f"`[[Lightning Bolt]]` • bracket style lookup\n"
+                f"`{prefix}rules counterspell` • official rulings\n"
+                f"`{prefix}random` • pull a random card (supports filters)"
             ),
             inline=False,
         )
 
         embed.add_field(
-            name="Advanced Filters",
+            name="Filtering & Sorting",
             value=(
-                "**Sets:** `e:mh3`, `e:ltr`, `e:who`\n"
-                "**Rarity:** `rarity:mythic`, `rarity:rare`\n"
-                "**Special:** `is:foil`, `is:showcase`, `frame:borderless`\n"
-                "**Example:** `{prefix}random e:who rarity:mythic`"
+                "Mix Scryfall syntax directly in the query.\n"
+                "• Sets: `e:mh3`, `s:ltr`\n"
+                "• Showcase/foils: `is:showcase is:foil`\n"
+                "• Sort results: `order:edhrec`, `order:usd dir:desc`\n"
+                f"• Example: `{prefix}cultivate order:edhrec dir:desc`"
             ),
             inline=True,
         )
 
         embed.add_field(
-            name="Multi-Card Lookup",
+            name="Multiple Cards",
             value=(
-                "Use semicolons to get multiple cards:\n"
+                "Semicolons resolve several cards in a grid.\n"
                 f"`{prefix}bolt; counterspell; doom blade`\n"
                 f"`{prefix}sol ring e:lea; mox ruby e:lea`"
             ),
@@ -724,12 +755,12 @@ class MTGCardBot(discord.Client):
         )
 
         embed.add_field(
-            name="Quick Tips",
+            name="Power Tips",
             value=(
-                "• **Aliases:** `!r`, `!rand`, `!h`, `!?`\n"
-                "• **Fuzzy search:** `ragav` → `Ragavan, Nimble Pilferer`\n"
-                "• **Live pricing** from TCGPlayer/Scryfall\n"
-                "• **No caching** — always fresh data!"
+                "• Fuzzy match typos: `ragav` ⇒ Ragavan\n"
+                "• Rate limiting keeps chats friendly\n"
+                "• Search pools pick varied prints unless you sort\n"
+                f"• Aliases: `{prefix}r`, `{prefix}rand`, `{prefix}h`, `{prefix}?`"
             ),
             inline=False,
         )
