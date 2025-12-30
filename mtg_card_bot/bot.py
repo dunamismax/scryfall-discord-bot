@@ -97,7 +97,8 @@ class MTGCardBot(discord.Client):
         user_id = message.author.id
         now = time.time()
         last_command = self._user_rate_limits.get(user_id, 0)
-        if now - last_command < 3.0:  # 3 seconds between commands
+        cooldown = self.config.command_cooldown
+        if cooldown > 0 and now - last_command < cooldown:
             self.logger.debug(
                 "Rate limited user",
                 user_id=str(user_id),
@@ -456,7 +457,9 @@ class MTGCardBot(discord.Client):
 
             # Fetch image if available
             if item.card.has_image():
-                image_url = item.card.get_best_image_url()
+                image_url = item.card.get_best_image_url(
+                    ("large", "normal", "small")
+                )
                 try:
                     image_data, filename = await self._fetch_image(image_url, name)
                     files.append(

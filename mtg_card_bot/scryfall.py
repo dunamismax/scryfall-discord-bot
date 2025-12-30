@@ -40,7 +40,9 @@ class Card:
         self.image_status = data.get("image_status", "")
         self.highres_image = data.get("highres_image", False)
 
-    def get_best_image_url(self) -> str:
+    def get_best_image_url(
+        self, prefer_formats: tuple[str, ...] | None = None
+    ) -> str:
         """Get the highest quality image URL available for the card."""
         image_uris = self.image_uris
 
@@ -52,7 +54,7 @@ class Card:
             return ""
 
         # Prefer highest quality images in order
-        image_preference = ["png", "large", "normal", "small"]
+        image_preference = prefer_formats or ("png", "large", "normal", "small")
 
         for format_type in image_preference:
             if format_type in image_uris:
@@ -221,6 +223,7 @@ class ScryfallClient:
         )
         self.logger = logging.with_component("scryfall")
         self._last_request_time = 0.0
+        self._rate_lock = asyncio.Lock()
 
     async def close(self) -> None:
         """Close the HTTP client."""
@@ -231,11 +234,11 @@ class ScryfallClient:
         start_time = time.time()
 
         # Rate limiting
-        time_since_last = start_time - self._last_request_time
-        if time_since_last < self.RATE_LIMIT:
-            await asyncio.sleep(self.RATE_LIMIT - time_since_last)
-
-        self._last_request_time = time.time()
+        async with self._rate_lock:
+            time_since_last = start_time - self._last_request_time
+            if time_since_last < self.RATE_LIMIT:
+                await asyncio.sleep(self.RATE_LIMIT - time_since_last)
+            self._last_request_time = time.time()
 
         url = f"{self.BASE_URL}{endpoint}"
         self.logger.debug("Making API request", endpoint=endpoint)
@@ -247,8 +250,7 @@ class ScryfallClient:
             if response.status_code >= 400:
                 try:
                     error_data = response.json()
-                    scryfall_error = ScryfallError(error_data)
-                    raise scryfall_error
+                    raise ScryfallError(error_data)
                 except ValueError:
                     # Invalid JSON in error response
                     error = errors.create_error(
@@ -263,6 +265,17 @@ class ScryfallClient:
             )
             return response
 
+        except ScryfallError as e:
+            error = errors.create_error(
+                e.get_error_type(), e.details or "Scryfall API error", e
+            )
+            self.logger.warning(
+                "API request failed",
+                endpoint=endpoint,
+                error=str(e),
+                status=str(e.status),
+            )
+            raise error
         except httpx.RequestError as e:
             response_time = (time.time() - start_time) * 1000
             error = errors.create_error(
@@ -329,43 +342,11 @@ class ScryfallClient:
         """Get a random Magic card, optionally filtered by search query."""
         if query:
             self.logger.debug("Fetching filtered random card", query=query)
-            # For filtered queries, we need to search and then pick randomly
-            # First, get the total count
-            search_result = await self.search_cards(query)
-
-            if search_result.total_cards == 0:
-                raise errors.create_error(
-                    errors.ErrorType.NOT_FOUND, f"No cards found matching '{query}'"
-                )
-
-            # Pick a random page if there are multiple pages
-            cards_per_page = 175  # Scryfall's default page size
-            max_page = min(
-                10, (search_result.total_cards + cards_per_page - 1) // cards_per_page
-            )  # Limit to first 10 pages for performance
-            random_page = random.randint(1, max_page)
-
-            # If we're on page 1 and already have the data, use it
-            if random_page == 1 and search_result.data:
-                cards = search_result.data
-            else:
-                # Fetch the random page
-                endpoint = self._build_search_endpoint(query, page=random_page)
-                response = await self._request(endpoint)
-                data = response.json()
-                if not data.get("data"):
-                    # Fallback to first page if random page fails
-                    cards = search_result.data
-                else:
-                    cards = [Card(card_data) for card_data in data["data"]]
-
-            # Pick a random card from the page
-            if not cards:
-                raise errors.create_error(
-                    errors.ErrorType.NOT_FOUND, f"No cards found matching '{query}'"
-                )
-
-            card = random.choice(cards)
+            params = urlencode({"q": query})
+            endpoint = f"/cards/random?{params}"
+            response = await self._request(endpoint)
+            data = response.json()
+            card = Card(data)
         else:
             self.logger.debug("Fetching random card")
             endpoint = "/cards/random"

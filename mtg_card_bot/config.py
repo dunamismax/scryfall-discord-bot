@@ -67,9 +67,13 @@ class MTGConfig:
     def __init__(self):
         self.discord_token = os.getenv("MTG_DISCORD_TOKEN", "")
         self.bot_name = "MTG Card Bot"
-        self.command_prefix = "!"
-        self.log_level = os.getenv("LOG_LEVEL", "info").lower()
-        self.json_logging = get_bool("JSON_LOGGING", False)
+        self.command_prefix = os.getenv("MTG_COMMAND_PREFIX", "!")
+        self.log_level = os.getenv(
+            "MTG_LOG_LEVEL", os.getenv("LOG_LEVEL", "info")
+        ).lower()
+        self.json_logging = get_bool(
+            "MTG_JSON_LOGGING", get_bool("JSON_LOGGING", False)
+        )
         self.debug_mode = get_bool("DEBUG", False)
         self.command_cooldown = get_float("MTG_COMMAND_COOLDOWN", 2.0)
 
