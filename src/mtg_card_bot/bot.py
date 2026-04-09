@@ -434,6 +434,13 @@ class MTGCardBot(discord.Client):
         # Resolve cards concurrently
         async def _resolve_one(query: str) -> MultiResolvedCard:
             try:
+                parts = query.split()
+                command = parts[0].lower() if parts else ""
+                # Handle random commands within multi-card lookups
+                if command in ("random", "rand", "r"):
+                    filter_query = " ".join(parts[1:])
+                    card = await self.scryfall_client.get_random_card(filter_query)
+                    return MultiResolvedCard(query, card)
                 card, used_fallback = await self._resolve_card_query(query)
                 return MultiResolvedCard(query, card, used_fallback)
             except Exception as e:
