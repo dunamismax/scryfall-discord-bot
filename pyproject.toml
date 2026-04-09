@@ -1,6 +1,6 @@
 [project]
 name = "mtg-card-bot"
-version = "2.0.0"
+version = "4.0.0"
 description = "A Discord bot for looking up Magic: The Gathering cards using the Scryfall API"
 readme = "README.md"
 license = { file = "LICENSE" }
