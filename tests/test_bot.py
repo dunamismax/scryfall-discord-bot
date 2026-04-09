@@ -6,7 +6,7 @@ import discord
 import pytest
 import pytest_asyncio
 
-from mtg_card_bot.bot import MTGCardBot, MultiResolvedCard
+from mtg_card_bot.bot import MTGCardBot
 from mtg_card_bot.config import MTGConfig
 from mtg_card_bot.errors import ErrorType, create_error
 from mtg_card_bot.scryfall import Card
@@ -20,9 +20,10 @@ class FakeChannel:
         self,
         *,
         embed: discord.Embed | None = None,
+        embeds: list[discord.Embed] | None = None,
         files: list[discord.File] | None = None,
     ) -> None:
-        self.sent_messages.append({"embed": embed, "files": files})
+        self.sent_messages.append({"embed": embed, "embeds": embeds, "files": files})
 
 
 class FakeAuthor:
@@ -198,48 +199,50 @@ async def test_send_card_message_with_image_includes_filter_context(
     assert embed.footer.text == "Limited Edition Alpha • Rare • Art by Christopher Rush"
 
 
-async def test_send_card_grid_message_builds_list_embed_and_images(
+async def test_multi_card_sends_one_embed_per_card(
     bot: MTGCardBot, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    bolt = make_card()
+    counterspell = make_card(
+        name="Counterspell",
+        scryfall_uri="https://scryfall.com/card/7ed/counterspell-id",
+        image_uris={},
+        rarity="uncommon",
+        set_name="Seventh Edition",
+        set="7ed",
+        prices={"usd": "2.50"},
+    )
+
+    async def fake_resolve(query: str) -> tuple[Card, bool]:
+        if "bolt" in query:
+            return bolt, False
+        if "counterspell" in query:
+            return counterspell, True
+        raise create_error(ErrorType.NOT_FOUND, "missing")
+
+    monkeypatch.setattr(bot, "_resolve_card_query", fake_resolve)
+
     channel = FakeChannel()
-    fetch_image = AsyncMock(return_value=(b"image-bytes", "lightning-bolt.jpg"))
-    monkeypatch.setattr(bot, "_fetch_image", fetch_image)
-    items = [
-        MultiResolvedCard("bolt", card=make_card()),
-        MultiResolvedCard(
-            "counterspall",
-            card=make_card(
-                name="Counterspell",
-                scryfall_uri="https://scryfall.com/card/7ed/counterspell-id",
-                image_uris={},
-            ),
-            used_fallback=True,
-        ),
-        MultiResolvedCard(
-            "definitely-not-a-card", error=create_error(ErrorType.NOT_FOUND, "missing")
-        ),
-    ]
-
-    await bot._send_card_grid_message(cast(Any, channel), items)
-
-    assert len(channel.sent_messages) == 2
-
-    list_embed = channel.sent_messages[0]["embed"]
-    assert isinstance(list_embed, discord.Embed)
-    assert list_embed.title == "Requested Cards"
-    assert list_embed.description == "\n".join(
-        [
-            "- [Lightning Bolt](https://scryfall.com/card/lea/lightning-bolt-id)",
-            "- [Counterspell (closest match)](https://scryfall.com/card/7ed/counterspell-id)",
-            "- definitely-not-a-card: not found",
-        ]
+    message = FakeMessage(
+        "!bolt; counterspell; nope", message_id=200, channel=channel
     )
 
-    image_payload = channel.sent_messages[1]["files"]
-    assert image_payload is not None
-    assert len(image_payload) == 1
-    assert image_payload[0].filename == "lightning-bolt.jpg"
-    fetch_image.assert_awaited_once_with(
-        "https://img.example/lightning-bolt-large.jpg",
-        "Lightning Bolt",
-    )
+    await bot.on_message(cast(Any, message))
+
+    # Should send one message with all embeds (not separate list + images)
+    assert len(channel.sent_messages) == 1
+    embeds = channel.sent_messages[0]["embeds"]
+    assert embeds is not None
+    assert len(embeds) == 3  # 2 cards + 1 error
+
+    # First embed: Lightning Bolt with image
+    assert embeds[0].title == "Lightning Bolt"
+    assert embeds[0].image.url == "https://img.example/lightning-bolt-large.jpg"
+
+    # Second embed: Counterspell (fallback), no image
+    assert embeds[1].title == "Counterspell"
+    assert "Closest match" in (embeds[1].description or "")
+    assert embeds[1].footer.text == "Seventh Edition (7ED) · $2.50"
+
+    # Third embed: error for unknown card
+    assert "nope" in (embeds[2].description or "")

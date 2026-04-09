@@ -1,14 +1,11 @@
 """Main MTG Card Bot Discord bot implementation."""
 
 import asyncio
-import io
 import re
 import time
 from contextlib import suppress
-from urllib.parse import urlparse
 
 import discord
-import httpx
 
 from . import config, errors, logging
 from .scryfall import Card, ScryfallClient
@@ -42,7 +39,6 @@ class MTGCardBot(discord.Client):
 
         self.logger = logging.with_component("mtg_card_bot")
         self.scryfall_client = ScryfallClient()
-        self.http_client = httpx.AsyncClient(timeout=20.0)
 
         # Enhanced duplicate suppression structures
         # Track recent (author, normalized_content) to timestamp
@@ -461,94 +457,49 @@ class MTGCardBot(discord.Client):
             )
             return
 
-        # Send cards in chunks of 4 for nice layout
-        max_per_message = 4
-        for i in range(0, len(resolved_cards), max_per_message):
-            chunk = resolved_cards[i : i + max_per_message]
-            await self._send_card_grid_message(message.channel, chunk)
+        # Build one embed per card (Discord allows up to 10 embeds per message)
+        embeds: list[discord.Embed] = []
+        errors: list[str] = []
 
-    async def _send_card_grid_message(
-        self, channel: discord.abc.Messageable, items: list[MultiResolvedCard]
-    ) -> None:
-        """Send a grid of card images and information."""
-        files: list[discord.File] = []
-        md_lines: list[str] = []
-
-        for item in items:
+        for item in resolved_cards:
             if item.error or not item.card or not item.card.is_valid_card():
-                md_lines.append(f"- {item.query}: not found")
+                errors.append(item.query)
                 continue
 
-            name = item.card.get_display_name()
-            label = name
+            card = item.card
+            embed = discord.Embed(
+                title=card.get_display_name(),
+                url=card.scryfall_uri,
+                color=self._get_rarity_color(card.rarity),
+            )
+
             if item.used_fallback:
-                label += " (closest match)"
+                embed.description = f"*Closest match for '{item.query}'*"
 
-            # Add masked link for clean display
-            if item.card.scryfall_uri:
-                md_lines.append(f"- [{label}]({item.card.scryfall_uri})")
-            else:
-                md_lines.append(f"- {label}")
+            image_url = card.get_best_image_url(("large", "normal", "small"))
+            if image_url:
+                embed.set_image(url=image_url)
 
-            # Fetch image if available
-            if item.card.has_image():
-                image_url = item.card.get_best_image_url(("large", "normal", "small"))
-                try:
-                    image_data, filename = await self._fetch_image(image_url, name)
-                    files.append(
-                        discord.File(io.BytesIO(image_data), filename=filename)
-                    )
-                except Exception as e:
-                    self.logger.warning(
-                        "Failed to fetch image", image_url=image_url, error=str(e)
-                    )
+            # Compact footer with set and price
+            footer_parts = [f"{card.set_name} ({card.set_code.upper()})"]
+            price = card.get_price_display()
+            if price:
+                footer_parts.append(price)
+            embed.set_footer(text=" · ".join(footer_parts))
 
-        # Send list embed first
-        embed = discord.Embed(
-            title="Requested Cards", description="\n".join(md_lines), color=0x5865F2
-        )
-        await channel.send(embed=embed)
+            embeds.append(embed)
 
-        # Then send images if any were fetched
-        if files:
-            await channel.send(files=files)
+        # Report any failures
+        if errors:
+            error_embed = discord.Embed(
+                description="\n".join(f"- {q}: not found" for q in errors),
+                color=0xE74C3C,
+            )
+            embeds.append(error_embed)
 
-    async def _fetch_image(self, url: str, card_name: str) -> tuple[bytes, str]:
-        """Fetch image data and return bytes with filename."""
-        response = await self.http_client.get(url)
-        response.raise_for_status()
-
-        # Determine file extension
-        content_type = response.headers.get("content-type", "")
-        if "png" in content_type:
-            ext = ".png"
-        elif "jpeg" in content_type or "jpg" in content_type:
-            ext = ".jpg"
-        else:
-            # Try to guess from URL
-            parsed_url = urlparse(url)
-            path = parsed_url.path.lower()
-            if path.endswith(".png"):
-                ext = ".png"
-            elif path.endswith((".jpg", ".jpeg")):
-                ext = ".jpg"
-            else:
-                ext = ".jpg"  # Default
-
-        # Create safe filename
-        safe_name = self._safe_filename(card_name)
-        filename = f"{safe_name}{ext}"
-
-        return response.content, filename
-
-    def _safe_filename(self, name: str) -> str:
-        """Create a safe filename from a card name."""
-        # Replace unsafe characters with hyphens
-        safe = re.sub(r"[^a-zA-Z0-9._-]+", "-", name.lower())
-        safe = safe.strip("-._")
-        if not safe:
-            return "card"
-        return safe[:64]  # Limit length
+        # Send in chunks of 10 (Discord embed limit per message)
+        for i in range(0, len(embeds), 10):
+            await message.channel.send(embeds=embeds[i : i + 10])
 
     def _has_filter_parameters(self, query: str) -> bool:
         """Check if the query contains Scryfall filter syntax."""
@@ -927,11 +878,6 @@ class MTGCardBot(discord.Client):
             await self.scryfall_client.close()
         except Exception as e:
             self.logger.warning("Error closing scryfall client", error=str(e))
-
-        try:
-            await self.http_client.aclose()
-        except Exception as e:
-            self.logger.warning("Error closing http client", error=str(e))
 
         # Clear duplicate suppression data
         self._recent_commands.clear()
