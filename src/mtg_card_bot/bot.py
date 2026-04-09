@@ -384,13 +384,31 @@ class MTGCardBot(discord.Client):
                     search_query, order_hint, direction_hint
                 )
             except Exception:
-                # If filtered search fails, extract card name and try fallback
+                # If filtered search fails, try to preserve filters by:
+                # 1) Fuzzy-resolve the card name to get the exact name
+                # 2) Re-search with the exact name + original filters
                 card_name = self._extract_card_name(search_query)
-                if card_name and len(card_name) >= 2:
-                    card = await self.scryfall_client.get_card_by_name(card_name)
-                    used_fallback = True
-                else:
+                if not card_name or len(card_name) < 2:
                     raise
+
+                fuzzy_card = await self.scryfall_client.get_card_by_name(card_name)
+
+                # Try again with exact name quoted + original filters
+                filter_parts = self._extract_filter_parts(search_query)
+                if filter_parts:
+                    exact_query = f'!"{fuzzy_card.name}" {filter_parts}'
+                    try:
+                        card = await self.scryfall_client.search_card_first(
+                            exact_query, order_hint, direction_hint
+                        )
+                        used_fallback = True
+                    except Exception:
+                        # Filters genuinely don't match — return the fuzzy result
+                        card = fuzzy_card
+                        used_fallback = True
+                else:
+                    card = fuzzy_card
+                    used_fallback = True
         else:
             # Direct API call for simple name lookups
             card = await self.scryfall_client.get_card_by_name(search_query)
@@ -428,7 +446,7 @@ class MTGCardBot(discord.Client):
             query_count=len(queries),
         )
 
-        # Resolve cards concurrently
+        # Resolve cards concurrently with per-card timeout
         async def _resolve_one(query: str) -> MultiResolvedCard:
             try:
                 parts = query.split()
@@ -443,7 +461,20 @@ class MTGCardBot(discord.Client):
             except Exception as e:
                 return MultiResolvedCard(query, error=e)
 
-        resolved_cards = list(await asyncio.gather(*[_resolve_one(q) for q in queries]))
+        async def _resolve_with_timeout(query: str) -> MultiResolvedCard:
+            try:
+                return await asyncio.wait_for(_resolve_one(query), timeout=20.0)
+            except asyncio.TimeoutError:
+                self.logger.warning(
+                    "Card resolution timed out", query=query
+                )
+                return MultiResolvedCard(
+                    query, error=TimeoutError(f"Timed out resolving: {query}")
+                )
+
+        resolved_cards = list(
+            await asyncio.gather(*[_resolve_with_timeout(q) for q in queries])
+        )
 
         # Separate successes from failures
         valid_cards: list[tuple[MultiResolvedCard, Card]] = []
@@ -603,6 +634,18 @@ class MTGCardBot(discord.Client):
                 card_name_parts.append(word)
 
         return " ".join(card_name_parts).strip()
+
+    def _extract_filter_parts(self, query: str) -> str:
+        """Extract only the Scryfall filter tokens from a query (e.g. 'is:borderless e:one')."""
+        words = query.split()
+        filter_parts = []
+
+        for word in words:
+            lower_word = word.lower()
+            if ":" in lower_word:
+                filter_parts.append(word)
+
+        return " ".join(filter_parts)
 
     def _extract_bracket_content(self, message_content: str) -> str | None:
         """Extract card name from bracket syntax [[card name]]."""

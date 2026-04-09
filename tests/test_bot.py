@@ -139,6 +139,9 @@ async def test_resolve_card_query_uses_search_and_fallback_for_filtered_queries(
     bot: MTGCardBot, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     expected_card = make_card(name="Sol Ring")
+    # search_card_first is called twice: first with original query (fails),
+    # then with exact name + filters after fuzzy lookup (also fails),
+    # so the final result comes from get_card_by_name.
     search_first = AsyncMock(side_effect=create_error(ErrorType.NOT_FOUND, "missing"))
     get_by_name = AsyncMock(return_value=expected_card)
     monkeypatch.setattr(bot.scryfall_client, "search_card_first", search_first)
@@ -150,7 +153,9 @@ async def test_resolve_card_query_uses_search_and_fallback_for_filtered_queries(
 
     assert card is expected_card
     assert used_fallback is True
-    search_first.assert_awaited_once_with("sol ring e:lea", "usd", "desc")
+    # First call: original query; second call: exact name + filters retry
+    assert search_first.await_count == 2
+    search_first.assert_any_await("sol ring e:lea", "usd", "desc")
     get_by_name.assert_awaited_once_with("sol ring")
 
 

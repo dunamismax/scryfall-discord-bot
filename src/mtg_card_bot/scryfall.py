@@ -240,14 +240,17 @@ class ScryfallClient:
         last_exception: Exception | None = None
 
         for attempt in range(self.MAX_RETRIES):
-            start_time = time.time()
-
-            # Rate limiting
+            # Rate limiting — compute elapsed time *inside* the lock so
+            # queued coroutines don't use a stale timestamp that would
+            # inflate the sleep duration.
             async with self._rate_lock:
-                time_since_last = start_time - self._last_request_time
+                now = time.time()
+                time_since_last = now - self._last_request_time
                 if time_since_last < self.RATE_LIMIT:
                     await asyncio.sleep(self.RATE_LIMIT - time_since_last)
                 self._last_request_time = time.time()
+
+            start_time = time.time()
 
             if attempt > 0:
                 self.logger.debug(
